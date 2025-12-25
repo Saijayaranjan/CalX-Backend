@@ -96,8 +96,10 @@ export const config = {
         serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
     },
 
-    // CORS
-    corsOrigins: env.CORS_ORIGINS.split(',').map((origin) => origin.trim()),
+    // CORS - handle '*' as wildcard
+    corsOrigins: env.CORS_ORIGINS === '*'
+        ? true  // Allow all origins
+        : env.CORS_ORIGINS.split(',').map((origin) => origin.trim()),
 
     // Logging
     logLevel: env.LOG_LEVEL,

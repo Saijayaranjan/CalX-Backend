@@ -1,0 +1,254 @@
+// =============================================================================
+// CalX Backend - Prisma Schema
+// =============================================================================
+// This schema defines all data models for the CalX IoT backend.
+// Run `npx prisma migrate dev` to apply changes.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum PowerMode {
+  NORMAL
+  LOW
+}
+
+enum TextSize {
+  SMALL
+  NORMAL
+  LARGE
+}
+
+enum KeyboardType {
+  QWERTY
+  T9
+}
+
+enum SenderType {
+  DEVICE
+  WEB
+}
+
+enum OTAStatus {
+  PENDING
+  DOWNLOADING
+  SUCCESS
+  FAILED
+  ROLLED_BACK
+}
+
+enum AIProvider {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  DEEPSEEK
+  PERPLEXITY
+  GROQ
+  OPENROUTER
+}
+
+// =============================================================================
+// User Model
+// =============================================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  devices Device[]
+
+  @@map("users")
+}
+
+// =============================================================================
+// Device Model
+// =============================================================================
+
+model Device {
+  id              String       @id @default(uuid())
+  deviceId        String       @unique @map("device_id") // e.g., calx_8F3A91
+  ownerId         String?      @map("owner_id")
+  macAddress      String       @map("mac_address")
+  firmwareVersion String       @default("1.0.0") @map("firmware_version")
+  lastSeen        DateTime?    @map("last_seen")
+  online          Boolean      @default(false)
+  batteryPercent  Int          @default(100) @map("battery_percent")
+  powerMode       PowerMode    @default(NORMAL) @map("power_mode")
+  textSize        TextSize     @default(NORMAL) @map("text_size")
+  keyboard        KeyboardType @default(QWERTY)
+  screenTimeout   Int          @default(30) @map("screen_timeout") // seconds
+  deviceToken     String?      @map("device_token") // hashed token
+  tokenRevoked    Boolean      @default(false) @map("token_revoked")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  owner        User?         @relation(fields: [ownerId], references: [id])
+  bindCodes    BindCode[]
+  chatMessages ChatMessage[]
+  file         File?
+  aiConfig     AIConfig?
+  activityLog  ActivityLog?
+  otaJobs      OTAJob[]
+
+  @@map("devices")
+}
+
+// =============================================================================
+// Bind Code Model (TTL = 300 seconds)
+// =============================================================================
+
+model BindCode {
+  id        String   @id @default(uuid())
+  code      String   @unique // 4-6 character alphanumeric code
+  deviceId  String   @map("device_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([code, expiresAt])
+  @@map("bind_codes")
+}
+
+// =============================================================================
+// Chat Message Model (max 2500 chars)
+// =============================================================================
+
+model ChatMessage {
+  id        String     @id @default(uuid())
+  deviceId  String     @map("device_id")
+  sender    SenderType
+  content   String     @db.VarChar(2500)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId, createdAt])
+  @@map("chat_messages")
+}
+
+// =============================================================================
+// File Model (TXT only, max 4000 chars, one per device)
+// =============================================================================
+
+model File {
+  id        String   @id @default(uuid())
+  deviceId  String   @unique @map("device_id")
+  content   String   @db.VarChar(4000)
+  charCount Int      @map("char_count")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@map("files")
+}
+
+// =============================================================================
+// AI Configuration Model
+// =============================================================================
+
+model AIConfig {
+  id          String     @id @default(uuid())
+  deviceId    String     @unique @map("device_id")
+  provider    AIProvider @default(OPENAI)
+  model       String     @default("gpt-4o-mini")
+  maxChars    Int        @default(2500) @map("max_chars")
+  temperature Float      @default(0.3)
+  apiKey      String?    @map("api_key") // User's own API key (encrypted)
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@map("ai_configs")
+}
+
+// =============================================================================
+// Firmware Model
+// =============================================================================
+
+model Firmware {
+  id          String   @id @default(uuid())
+  version     String   @unique
+  storagePath String   @map("storage_path") // URL or path to binary
+  checksum    String   // SHA256 checksum
+  fileSize    Int      @map("file_size") // bytes
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  otaJobs OTAJob[]
+
+  @@map("firmware")
+}
+
+// =============================================================================
+// Activity Log Model
+// =============================================================================
+
+model ActivityLog {
+  id              String    @id @default(uuid())
+  deviceId        String    @unique @map("device_id")
+  lastAiQuery     DateTime? @map("last_ai_query")
+  lastFileSync    DateTime? @map("last_file_sync")
+  lastChatMessage DateTime? @map("last_chat_message")
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@map("activity_logs")
+}
+
+// =============================================================================
+// OTA Job Model (tracks update attempts)
+// =============================================================================
+
+model OTAJob {
+  id         String    @id @default(uuid())
+  deviceId   String    @map("device_id")
+  firmwareId String    @map("firmware_id")
+  status     OTAStatus @default(PENDING)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  device   Device   @relation(fields: [deviceId], references: [id])
+  firmware Firmware @relation(fields: [firmwareId], references: [id])
+
+  @@index([deviceId, status])
+  @@map("ota_jobs")
+}
+
+// =============================================================================
+// AI Chunk Model (temporary storage for chunked responses, TTL 1 hour)
+// =============================================================================
+
+model AIChunk {
+  id        String   @id @default(uuid())
+  queryId   String   @unique @map("query_id")
+  deviceId  String   @map("device_id")
+  chunks    String[] // Array of chunked responses
+  cursor    Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([queryId])
+  @@index([expiresAt])
+  @@map("ai_chunks")
+}

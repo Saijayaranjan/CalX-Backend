@@ -1,0 +1,72 @@
+# Render Blueprint for CalX Backend
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: calx-backend
+    env: node
+    region: oregon  # Change to your preferred region
+    plan: free      # free, starter, standard, pro
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard (from Supabase)
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure value
+      - key: DEVICE_TOKEN_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGINS
+        value: https://your-frontend.vercel.app  # Update after frontend deploy
+      - key: LOG_LEVEL
+        value: info
+      
+      # ===========================================
+      # AI Provider Keys - Set manually in dashboard
+      # All 7 providers supported
+      # ===========================================
+      
+      # OpenAI (ChatGPT)
+      - key: OPENAI_API_KEY
+        sync: false
+      
+      # Anthropic (Claude)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      
+      # Google (Gemini)
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      
+      # DeepSeek
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      
+      # Perplexity
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      
+      # Groq
+      - key: GROQ_API_KEY
+        sync: false
+      
+      # OpenRouter (access to multiple models)
+      - key: OPENROUTER_API_KEY
+        sync: false
+      
+      # ===========================================
+      # Supabase (for file storage - optional)
+      # ===========================================
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

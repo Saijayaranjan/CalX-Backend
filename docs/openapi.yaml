@@ -1,0 +1,691 @@
+openapi: 3.0.3
+info:
+  title: CalX Backend API
+  description: |
+    Production-ready backend for CalX IoT device and web dashboard.
+    
+    ## Authentication
+    
+    - **Web routes** (`/web/*`): Require JWT token in `Authorization: Bearer <token>` header
+    - **Device routes** (`/device/*`): Require device token in `Authorization: Bearer <device_token>` header
+    
+    ## Rate Limiting
+    
+    Rate limiting is not enforced in v1 but hooks are in place for future versions.
+    
+    ## Error Responses
+    
+    All errors return JSON with an `error` field:
+    ```json
+    { "error": "Human-readable error message" }
+    ```
+  version: 1.0.0
+  contact:
+    name: CalX Support
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.calx.app
+    description: Production
+
+tags:
+  - name: Web Auth
+    description: User authentication
+  - name: Web Bind
+    description: Device binding (web side)
+  - name: Web Chat
+    description: Chat messaging (web side)
+  - name: Web File
+    description: File management (web side)
+  - name: Web Device
+    description: Device management (web side)
+  - name: Web Update
+    description: OTA updates (web side)
+  - name: Device Bind
+    description: Device binding (device side)
+  - name: Device
+    description: Device operations
+  - name: Device Chat
+    description: Chat messaging (device side)
+  - name: Device AI
+    description: AI queries (device side)
+  - name: Device Update
+    description: OTA updates (device side)
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  # ==================== WEB AUTH ====================
+  /web/auth/register:
+    post:
+      tags: [Web Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        format: uuid
+        '400':
+          description: Validation error
+
+  /web/auth/login:
+    post:
+      tags: [Web Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+        '401':
+          description: Invalid credentials
+
+  # ==================== DEVICE BIND ====================
+  /device/bind/request:
+    post:
+      tags: [Device Bind]
+      summary: Device requests a bind code
+      description: No authentication required. Device provides its ID to get a bind code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+                  pattern: "^calx_[A-Za-z0-9]+$"
+                  example: "calx_8F3A91"
+      responses:
+        '200':
+          description: Bind code generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bind_code:
+                    type: string
+                    example: "X4K9"
+                  expires_in:
+                    type: integer
+                    example: 300
+
+  /device/bind/status:
+    get:
+      tags: [Device Bind]
+      summary: Device polls for binding status
+      description: Returns device token once when binding is complete.
+      parameters:
+        - name: device_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Binding status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bound:
+                    type: boolean
+                  device_token:
+                    type: string
+                    description: Only returned once after successful bind
+
+  # ==================== WEB BIND ====================
+  /web/bind/confirm:
+    post:
+      tags: [Web Bind]
+      summary: User confirms device binding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bind_code]
+              properties:
+                bind_code:
+                  type: string
+                  minLength: 4
+                  maxLength: 6
+      responses:
+        '200':
+          description: Device bound
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: "bound"
+                      device_id:
+                        type: string
+
+  # ==================== DEVICE HEARTBEAT & SETTINGS ====================
+  /device/heartbeat:
+    post:
+      tags: [Device]
+      summary: Device sends heartbeat
+      security:
+        - deviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [battery_percent, power_mode, firmware_version]
+              properties:
+                battery_percent:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                power_mode:
+                  type: string
+                  enum: [NORMAL, LOW]
+                firmware_version:
+                  type: string
+      responses:
+        '200':
+          description: Heartbeat received
+
+  /device/settings:
+    get:
+      tags: [Device]
+      summary: Device fetches its settings
+      security:
+        - deviceAuth: []
+      responses:
+        '200':
+          description: Device settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceSettings'
+
+  # ==================== DEVICE CHAT ====================
+  /device/chat:
+    get:
+      tags: [Device Chat]
+      summary: Device fetches chat messages
+      security:
+        - deviceAuth: []
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+
+  /device/chat/send:
+    post:
+      tags: [Device Chat]
+      summary: Device sends a chat message
+      security:
+        - deviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 2500
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+
+  # ==================== WEB CHAT ====================
+  /web/chat/send:
+    post:
+      tags: [Web Chat]
+      summary: User sends a chat message to device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, content]
+              properties:
+                device_id:
+                  type: string
+                content:
+                  type: string
+                  maxLength: 2500
+      responses:
+        '201':
+          description: Message sent
+
+  # ==================== DEVICE FILE ====================
+  /device/file:
+    get:
+      tags: [Device]
+      summary: Device fetches its file
+      security:
+        - deviceAuth: []
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                  char_count:
+                    type: integer
+
+  # ==================== WEB FILE ====================
+  /web/file/upload:
+    post:
+      tags: [Web File]
+      summary: User uploads a file to device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, content]
+              properties:
+                device_id:
+                  type: string
+                content:
+                  type: string
+                  maxLength: 4000
+      responses:
+        '200':
+          description: File uploaded
+        '413':
+          description: Content too large
+
+  # ==================== DEVICE AI ====================
+  /device/ai/query:
+    post:
+      tags: [Device AI]
+      summary: Device sends AI query
+      security:
+        - deviceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  maxLength: 2500
+      responses:
+        '200':
+          description: AI response (first chunk)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chunk:
+                    type: string
+                  has_more:
+                    type: boolean
+                  cursor:
+                    type: string
+                    nullable: true
+
+  /device/ai/continue:
+    get:
+      tags: [Device AI]
+      summary: Device fetches next AI response chunk
+      security:
+        - deviceAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Next chunk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chunk:
+                    type: string
+                  has_more:
+                    type: boolean
+                  cursor:
+                    type: string
+                    nullable: true
+
+  # ==================== DEVICE UPDATE ====================
+  /device/update/check:
+    get:
+      tags: [Device Update]
+      summary: Device checks for firmware updates
+      security:
+        - deviceAuth: []
+      responses:
+        '200':
+          description: Update availability
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                  version:
+                    type: string
+                  checksum:
+                    type: string
+                  file_size:
+                    type: integer
+
+  /device/update/download:
+    get:
+      tags: [Device Update]
+      summary: Device downloads firmware
+      security:
+        - deviceAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  download_url:
+                    type: string
+                  checksum:
+                    type: string
+                  file_size:
+                    type: integer
+        '403':
+          description: Battery too low for OTA
+
+  # ==================== WEB DEVICE ====================
+  /web/device/settings:
+    post:
+      tags: [Web Device]
+      summary: User updates device settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+                power_mode:
+                  type: string
+                  enum: [NORMAL, LOW]
+                text_size:
+                  type: string
+                  enum: [SMALL, NORMAL, LARGE]
+                keyboard:
+                  type: string
+                  enum: [QWERTY, T9]
+                screen_timeout:
+                  type: integer
+                ai_config:
+                  type: object
+                  properties:
+                    provider:
+                      type: string
+                      enum: [OPENAI, ANTHROPIC, GEMINI, DEEPSEEK, PERPLEXITY, GROQ, OPENROUTER]
+                    model:
+                      type: string
+                    max_chars:
+                      type: integer
+                    temperature:
+                      type: number
+                    api_key:
+                      type: string
+      responses:
+        '200':
+          description: Settings updated
+
+  /web/device/{id}/activity:
+    get:
+      tags: [Web Device]
+      summary: Get device activity log
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Activity log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      last_ai_query:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      last_file_sync:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      last_chat_message:
+                        type: string
+                        format: date-time
+                        nullable: true
+
+  # ==================== WEB UPDATE ====================
+  /web/device/update:
+    post:
+      tags: [Web Update]
+      summary: Trigger OTA update for device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, firmware_id]
+              properties:
+                device_id:
+                  type: string
+                firmware_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: OTA job created
+        '403':
+          description: Battery too low for OTA
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    deviceAuth:
+      type: http
+      scheme: bearer
+      description: Device token (dev_tok_xxx)
+
+  schemas:
+    DeviceSettings:
+      type: object
+      properties:
+        power_mode:
+          type: string
+        text_size:
+          type: string
+        keyboard:
+          type: string
+        screen_timeout:
+          type: integer
+        ai_config:
+          type: object
+          nullable: true
+          properties:
+            provider:
+              type: string
+            model:
+              type: string
+            max_chars:
+              type: integer
+            temperature:
+              type: number
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sender:
+          type: string
+          enum: [DEVICE, WEB]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time

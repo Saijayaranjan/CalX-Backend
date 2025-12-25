@@ -7,16 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model activity_logs {
+model ActivityLog {
   id                String    @id
   device_id         String    @unique
   last_ai_query     DateTime?
   last_file_sync    DateTime?
   last_chat_message DateTime?
-  devices           devices   @relation(fields: [device_id], references: [id])
+  device            Device    @relation(fields: [device_id], references: [id])
+
+  @@map("activity_logs")
 }
 
-model ai_chunks {
+model AIChunk {
   id         String   @id
   query_id   String   @unique
   device_id  String
@@ -27,9 +29,10 @@ model ai_chunks {
 
   @@index([expires_at])
   @@index([query_id])
+  @@map("ai_chunks")
 }
 
-model ai_configs {
+model AIConfig {
   id          String     @id
   device_id   String     @unique
   provider    AIProvider @default(OPENAI)
@@ -37,33 +40,37 @@ model ai_configs {
   max_chars   Int        @default(2500)
   temperature Float      @default(0.3)
   api_key     String?
-  devices     devices    @relation(fields: [device_id], references: [id])
+  device      Device     @relation(fields: [device_id], references: [id])
+
+  @@map("ai_configs")
 }
 
-model bind_codes {
+model BindCode {
   id         String   @id
   code       String   @unique
   device_id  String
   expires_at DateTime
   used       Boolean  @default(false)
   created_at DateTime @default(now())
-  devices    devices  @relation(fields: [device_id], references: [id])
+  device     Device   @relation(fields: [device_id], references: [id])
 
   @@index([code, expires_at])
+  @@map("bind_codes")
 }
 
-model chat_messages {
+model ChatMessage {
   id         String     @id
   device_id  String
   sender     SenderType
   content    String     @db.VarChar(2500)
   created_at DateTime   @default(now())
-  devices    devices    @relation(fields: [device_id], references: [id])
+  device     Device     @relation(fields: [device_id], references: [id])
 
   @@index([device_id, created_at])
+  @@map("chat_messages")
 }
 
-model devices {
+model Device {
   id               String          @id
   device_id        String          @unique
   owner_id         String?
@@ -80,54 +87,63 @@ model devices {
   token_revoked    Boolean         @default(false)
   created_at       DateTime        @default(now())
   pending_token    String?
-  activity_logs    activity_logs?
-  ai_configs       ai_configs?
-  bind_codes       bind_codes[]
-  chat_messages    chat_messages[]
-  users            users?          @relation(fields: [owner_id], references: [id])
-  files            files?
-  ota_jobs         ota_jobs[]
+  activity_log     ActivityLog?
+  ai_config        AIConfig?
+  bind_codes       BindCode[]
+  chat_messages    ChatMessage[]
+  owner            User?           @relation(fields: [owner_id], references: [id])
+  file             File?
+  ota_jobs         OTAJob[]
+
+  @@map("devices")
 }
 
-model files {
+model File {
   id         String   @id
   device_id  String   @unique
   content    String   @db.VarChar(4000)
   char_count Int
   updated_at DateTime
-  devices    devices  @relation(fields: [device_id], references: [id])
+  device     Device   @relation(fields: [device_id], references: [id])
+
+  @@map("files")
 }
 
-model firmware {
-  id           String     @id
-  version      String     @unique
+model Firmware {
+  id           String   @id
+  version      String   @unique
   storage_path String
   checksum     String
   file_size    Int
   notes        String?
-  created_at   DateTime   @default(now())
-  ota_jobs     ota_jobs[]
+  created_at   DateTime @default(now())
+  ota_jobs     OTAJob[]
+
+  @@map("firmware")
 }
 
-model ota_jobs {
+model OTAJob {
   id          String    @id
   device_id   String
   firmware_id String
   status      OTAStatus @default(PENDING)
   created_at  DateTime  @default(now())
   updated_at  DateTime
-  devices     devices   @relation(fields: [device_id], references: [id])
-  firmware    firmware  @relation(fields: [firmware_id], references: [id])
+  device      Device    @relation(fields: [device_id], references: [id])
+  firmware    Firmware  @relation(fields: [firmware_id], references: [id])
 
   @@index([device_id, status])
+  @@map("ota_jobs")
 }
 
-model users {
-  id            String    @id
-  email         String    @unique
+model User {
+  id            String   @id
+  email         String   @unique
   password_hash String
-  created_at    DateTime  @default(now())
-  devices       devices[]
+  created_at    DateTime @default(now())
+  devices       Device[]
+
+  @@map("users")
 }
 
 enum AIProvider {

@@ -137,11 +137,11 @@ model OTAJob {
 }
 
 model User {
-  id            String   @id
-  email         String   @unique
-  password_hash String
-  created_at    DateTime @default(now())
-  devices       Device[]
+  id           String   @id
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  devices      Device[]
 
   @@map("users")
 }

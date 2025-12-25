@@ -8,7 +8,7 @@ datasource db {
 }
 
 model ActivityLog {
-  id              String    @id
+  id              String    @id @default(uuid())
   deviceId        String    @unique @map("device_id")
   lastAiQuery     DateTime? @map("last_ai_query")
   lastFileSync    DateTime? @map("last_file_sync")
@@ -19,7 +19,7 @@ model ActivityLog {
 }
 
 model AIChunk {
-  id        String   @id
+  id        String   @id @default(uuid())
   queryId   String   @unique @map("query_id")
   deviceId  String   @map("device_id")
   chunks    String[]
@@ -33,7 +33,7 @@ model AIChunk {
 }
 
 model AIConfig {
-  id          String     @id
+  id          String     @id @default(uuid())
   deviceId    String     @unique @map("device_id")
   provider    AIProvider @default(OPENAI)
   model       String     @default("gpt-4o-mini")
@@ -46,7 +46,7 @@ model AIConfig {
 }
 
 model BindCode {
-  id        String   @id
+  id        String   @id @default(uuid())
   code      String   @unique
   deviceId  String   @map("device_id")
   expiresAt DateTime @map("expires_at")
@@ -59,7 +59,7 @@ model BindCode {
 }
 
 model ChatMessage {
-  id        String     @id
+  id        String     @id @default(uuid())
   deviceId  String     @map("device_id")
   sender    SenderType
   content   String     @db.VarChar(2500)
@@ -71,7 +71,7 @@ model ChatMessage {
 }
 
 model Device {
-  id              String        @id
+  id              String        @id @default(uuid())
   deviceId        String        @unique @map("device_id")
   ownerId         String?       @map("owner_id")
   macAddress      String        @map("mac_address")
@@ -99,7 +99,7 @@ model Device {
 }
 
 model File {
-  id        String   @id
+  id        String   @id @default(uuid())
   deviceId  String   @unique @map("device_id")
   content   String   @db.VarChar(4000)
   charCount Int      @map("char_count")
@@ -110,7 +110,7 @@ model File {
 }
 
 model Firmware {
-  id          String   @id
+  id          String   @id @default(uuid())
   version     String   @unique
   storagePath String   @map("storage_path")
   checksum    String
@@ -123,7 +123,7 @@ model Firmware {
 }
 
 model OTAJob {
-  id         String    @id
+  id         String    @id @default(uuid())
   deviceId   String    @map("device_id")
   firmwareId String    @map("firmware_id")
   status     OTAStatus @default(PENDING)
@@ -137,7 +137,7 @@ model OTAJob {
 }
 
 model User {
-  id           String   @id
+  id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")

@@ -9,7 +9,6 @@ import {
     generateBindCode,
     generateDeviceToken,
     hashDeviceToken,
-    generateUUID,
 } from '../utils/crypto.js';
 import { config } from '../config/env.js';
 import { log } from '../utils/logger.js';
@@ -40,7 +39,6 @@ export async function requestBindCode(deviceId: string): Promise<BindRequestResp
         // Create new device record
         device = await prisma.device.create({
             data: {
-                id: generateUUID(),
                 deviceId,
                 macAddress: deviceId.replace('calx_', ''), // Extract MAC from device ID
             },
@@ -64,7 +62,6 @@ export async function requestBindCode(deviceId: string): Promise<BindRequestResp
 
     await prisma.bindCode.create({
         data: {
-            id: generateUUID(),
             code,
             deviceId: device.id,
             expiresAt,
@@ -129,14 +126,13 @@ export async function confirmBind(
         // Create activity log for the device
         prisma.activityLog.upsert({
             where: { deviceId: code.deviceId },
-            create: { id: generateUUID(), deviceId: code.deviceId },
+            create: { deviceId: code.deviceId },
             update: {},
         }),
         // Create default AI config for the device
         prisma.aIConfig.upsert({
             where: { deviceId: code.deviceId },
             create: {
-                id: generateUUID(),
                 deviceId: code.deviceId,
                 provider: 'OPENAI',
                 model: 'gpt-4o-mini',
@@ -313,7 +309,6 @@ export async function updateDeviceSettings(
         await prisma.aIConfig.upsert({
             where: { deviceId: device.id },
             create: {
-                id: generateUUID(),
                 deviceId: device.id,
                 provider: settings.aiConfig.provider || 'OPENAI',
                 model: settings.aiConfig.model || 'gpt-4o-mini',

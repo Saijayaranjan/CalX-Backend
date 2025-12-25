@@ -145,9 +145,8 @@ export async function confirmBind(
 
     log.device.bind(code.device.deviceId, 'confirm');
 
-    // Store token temporarily for device to fetch (in a real scenario, 
-    // you might want a separate table for pending tokens)
-    // For now, we'll return success and device will poll for token
+    // Store token for device to fetch via poll
+    storePendingToken(code.device.deviceId, deviceToken);
 
     return {
         status: 'bound',
@@ -159,9 +158,6 @@ export async function confirmBind(
 // Device Binding - Status Check
 // =============================================================================
 
-// Store pending tokens temporarily (in production, use Redis or DB)
-const pendingTokens = new Map<string, string>();
-
 export async function getBindStatus(deviceId: string): Promise<BindStatusResponse> {
     const device = await prisma.device.findUnique({
         where: { deviceId },
@@ -169,6 +165,7 @@ export async function getBindStatus(deviceId: string): Promise<BindStatusRespons
             id: true,
             ownerId: true,
             deviceToken: true,
+            pendingToken: true,
         },
     });
 
@@ -181,16 +178,20 @@ export async function getBindStatus(deviceId: string): Promise<BindStatusRespons
     }
 
     // Check if we have a pending token to deliver
-    const pendingToken = pendingTokens.get(deviceId);
+    if (device.pendingToken) {
+        const token = device.pendingToken;
 
-    if (pendingToken) {
-        // Delete pending token after delivery (one-time)
-        pendingTokens.delete(deviceId);
+        // Clear pending token after delivery (one-time)
+        await prisma.device.update({
+            where: { deviceId },
+            data: { pendingToken: null },
+        });
+
         log.device.bind(deviceId, 'complete');
 
         return {
             bound: true,
-            device_token: pendingToken,
+            device_token: token,
         };
     }
 
@@ -198,9 +199,10 @@ export async function getBindStatus(deviceId: string): Promise<BindStatusRespons
     return { bound: true };
 }
 
-// Helper to store pending token for device delivery
+// Helper to store pending token (kept for backwards compatibility)
 export function storePendingToken(deviceId: string, token: string): void {
-    pendingTokens.set(deviceId, token);
+    // Now stored in database, this is a no-op
+    log.debug(`Pending token for ${deviceId} stored in database`);
 }
 
 // =============================================================================

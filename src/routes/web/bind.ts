@@ -8,11 +8,11 @@ import { Router } from 'express';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { authenticateUser } from '../../middleware/auth.js';
 import { bindConfirmSchema } from '../../utils/validators.js';
-import { confirmBind, storePendingToken } from '../../services/device.service.js';
-import { generateDeviceToken, hashDeviceToken } from '../../utils/crypto.js';
-import { prisma } from '../../lib/prisma.js';
-import { ValidationError } from '../../types/index.js';
+import { ValidationError, ForbiddenError } from '../../types/index.js';
 import type { AuthenticatedUserRequest } from '../../types/index.js';
+import { prisma } from '../../lib/prisma.js';
+import { generateDeviceToken, hashDeviceToken } from '../../utils/crypto.js';
+import { log } from '../../utils/logger.js';
 
 const router = Router();
 
@@ -35,7 +35,7 @@ router.post(
 
         const { bind_code } = result.data;
 
-        // First, get the device info from the bind code
+        // Find valid bind code
         const bindCode = await prisma.bindCode.findFirst({
             where: {
                 code: bind_code.toUpperCase(),
@@ -49,27 +49,59 @@ router.post(
             throw new ValidationError('Invalid or expired bind code');
         }
 
-        // Generate device token BEFORE confirming bind
+        // Check if device is already bound to another user
+        if (bindCode.device.ownerId && bindCode.device.ownerId !== userReq.user.id) {
+            throw new ForbiddenError('Device is already bound to another user');
+        }
+
+        // Generate device token
         const deviceToken = generateDeviceToken();
         const tokenHash = hashDeviceToken(deviceToken);
 
-        // Update device with the token hash
-        await prisma.device.update({
-            where: { id: bindCode.deviceId },
-            data: {
-                deviceToken: tokenHash,
-            },
-        });
+        // Update device and mark code as used (in transaction)
+        await prisma.$transaction([
+            prisma.device.update({
+                where: { id: bindCode.deviceId },
+                data: {
+                    ownerId: userReq.user.id,
+                    deviceToken: tokenHash,
+                    tokenRevoked: false,
+                    // Store raw token temporarily for device pickup
+                    pendingToken: deviceToken,
+                },
+            }),
+            prisma.bindCode.update({
+                where: { id: bindCode.id },
+                data: { used: true },
+            }),
+            // Create activity log
+            prisma.activityLog.upsert({
+                where: { deviceId: bindCode.deviceId },
+                create: { deviceId: bindCode.deviceId },
+                update: {},
+            }),
+            // Create default AI config
+            prisma.aIConfig.upsert({
+                where: { deviceId: bindCode.deviceId },
+                create: {
+                    deviceId: bindCode.deviceId,
+                    provider: 'OPENAI',
+                    model: 'gpt-4o-mini',
+                    maxChars: 2500,
+                    temperature: 0.3,
+                },
+                update: {},
+            }),
+        ]);
 
-        // Store the raw token for device to fetch (one-time delivery)
-        storePendingToken(bindCode.device.deviceId, deviceToken);
-
-        // Confirm binding
-        const bindResponse = await confirmBind(userReq.user.id, bind_code);
+        log.device.bind(bindCode.device.deviceId, 'confirm');
 
         res.json({
             success: true,
-            data: bindResponse,
+            data: {
+                status: 'bound',
+                device_id: bindCode.device.deviceId,
+            },
         });
     })
 );

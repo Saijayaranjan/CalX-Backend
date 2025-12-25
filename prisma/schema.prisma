@@ -8,131 +8,131 @@ datasource db {
 }
 
 model ActivityLog {
-  id                String    @id
-  device_id         String    @unique
-  last_ai_query     DateTime?
-  last_file_sync    DateTime?
-  last_chat_message DateTime?
-  device            Device    @relation(fields: [device_id], references: [id])
+  id              String    @id
+  deviceId        String    @unique @map("device_id")
+  lastAiQuery     DateTime? @map("last_ai_query")
+  lastFileSync    DateTime? @map("last_file_sync")
+  lastChatMessage DateTime? @map("last_chat_message")
+  device          Device    @relation(fields: [deviceId], references: [id])
 
   @@map("activity_logs")
 }
 
 model AIChunk {
-  id         String   @id
-  query_id   String   @unique
-  device_id  String
-  chunks     String[]
-  cursor     Int      @default(0)
-  expires_at DateTime
-  created_at DateTime @default(now())
+  id        String   @id
+  queryId   String   @unique @map("query_id")
+  deviceId  String   @map("device_id")
+  chunks    String[]
+  cursor    Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([expires_at])
-  @@index([query_id])
+  @@index([expiresAt])
+  @@index([queryId])
   @@map("ai_chunks")
 }
 
 model AIConfig {
   id          String     @id
-  device_id   String     @unique
+  deviceId    String     @unique @map("device_id")
   provider    AIProvider @default(OPENAI)
   model       String     @default("gpt-4o-mini")
-  max_chars   Int        @default(2500)
+  maxChars    Int        @default(2500) @map("max_chars")
   temperature Float      @default(0.3)
-  api_key     String?
-  device      Device     @relation(fields: [device_id], references: [id])
+  apiKey      String?    @map("api_key")
+  device      Device     @relation(fields: [deviceId], references: [id])
 
   @@map("ai_configs")
 }
 
 model BindCode {
-  id         String   @id
-  code       String   @unique
-  device_id  String
-  expires_at DateTime
-  used       Boolean  @default(false)
-  created_at DateTime @default(now())
-  device     Device   @relation(fields: [device_id], references: [id])
+  id        String   @id
+  code      String   @unique
+  deviceId  String   @map("device_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  device    Device   @relation(fields: [deviceId], references: [id])
 
-  @@index([code, expires_at])
+  @@index([code, expiresAt])
   @@map("bind_codes")
 }
 
 model ChatMessage {
-  id         String     @id
-  device_id  String
-  sender     SenderType
-  content    String     @db.VarChar(2500)
-  created_at DateTime   @default(now())
-  device     Device     @relation(fields: [device_id], references: [id])
+  id        String     @id
+  deviceId  String     @map("device_id")
+  sender    SenderType
+  content   String     @db.VarChar(2500)
+  createdAt DateTime   @default(now()) @map("created_at")
+  device    Device     @relation(fields: [deviceId], references: [id])
 
-  @@index([device_id, created_at])
+  @@index([deviceId, createdAt])
   @@map("chat_messages")
 }
 
 model Device {
-  id               String          @id
-  device_id        String          @unique
-  owner_id         String?
-  mac_address      String
-  firmware_version String          @default("1.0.0")
-  last_seen        DateTime?
-  online           Boolean         @default(false)
-  battery_percent  Int             @default(100)
-  power_mode       PowerMode       @default(NORMAL)
-  text_size        TextSize        @default(NORMAL)
-  keyboard         KeyboardType    @default(QWERTY)
-  screen_timeout   Int             @default(30)
-  device_token     String?
-  token_revoked    Boolean         @default(false)
-  created_at       DateTime        @default(now())
-  pending_token    String?
-  activity_log     ActivityLog?
-  ai_config        AIConfig?
-  bind_codes       BindCode[]
-  chat_messages    ChatMessage[]
-  owner            User?           @relation(fields: [owner_id], references: [id])
-  file             File?
-  ota_jobs         OTAJob[]
+  id              String        @id
+  deviceId        String        @unique @map("device_id")
+  ownerId         String?       @map("owner_id")
+  macAddress      String        @map("mac_address")
+  firmwareVersion String        @default("1.0.0") @map("firmware_version")
+  lastSeen        DateTime?     @map("last_seen")
+  online          Boolean       @default(false)
+  batteryPercent  Int           @default(100) @map("battery_percent")
+  powerMode       PowerMode     @default(NORMAL) @map("power_mode")
+  textSize        TextSize      @default(NORMAL) @map("text_size")
+  keyboard        KeyboardType  @default(QWERTY)
+  screenTimeout   Int           @default(30) @map("screen_timeout")
+  deviceToken     String?       @map("device_token")
+  tokenRevoked    Boolean       @default(false) @map("token_revoked")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  pendingToken    String?       @map("pending_token")
+  activityLog     ActivityLog?
+  aiConfig        AIConfig?
+  bindCodes       BindCode[]
+  chatMessages    ChatMessage[]
+  owner           User?         @relation(fields: [ownerId], references: [id])
+  file            File?
+  otaJobs         OTAJob[]
 
   @@map("devices")
 }
 
 model File {
-  id         String   @id
-  device_id  String   @unique
-  content    String   @db.VarChar(4000)
-  char_count Int
-  updated_at DateTime
-  device     Device   @relation(fields: [device_id], references: [id])
+  id        String   @id
+  deviceId  String   @unique @map("device_id")
+  content   String   @db.VarChar(4000)
+  charCount Int      @map("char_count")
+  updatedAt DateTime @map("updated_at")
+  device    Device   @relation(fields: [deviceId], references: [id])
 
   @@map("files")
 }
 
 model Firmware {
-  id           String   @id
-  version      String   @unique
-  storage_path String
-  checksum     String
-  file_size    Int
-  notes        String?
-  created_at   DateTime @default(now())
-  ota_jobs     OTAJob[]
+  id          String   @id
+  version     String   @unique
+  storagePath String   @map("storage_path")
+  checksum    String
+  fileSize    Int      @map("file_size")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  otaJobs     OTAJob[]
 
   @@map("firmware")
 }
 
 model OTAJob {
-  id          String    @id
-  device_id   String
-  firmware_id String
-  status      OTAStatus @default(PENDING)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime
-  device      Device    @relation(fields: [device_id], references: [id])
-  firmware    Firmware  @relation(fields: [firmware_id], references: [id])
+  id         String    @id
+  deviceId   String    @map("device_id")
+  firmwareId String    @map("firmware_id")
+  status     OTAStatus @default(PENDING)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @map("updated_at")
+  device     Device    @relation(fields: [deviceId], references: [id])
+  firmware   Firmware  @relation(fields: [firmwareId], references: [id])
 
-  @@index([device_id, status])
+  @@index([deviceId, status])
   @@map("ota_jobs")
 }
 

@@ -1,8 +1,21 @@
 # CalX Backend
 
-Production-ready backend for CalX IoT device and web dashboard.
+<div align="center">
+
+[![Website](https://img.shields.io/badge/Website-calxio.vercel.app-blue?style=for-the-badge)](https://calxio.vercel.app/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
+**Production-ready backend for CalX IoT device and web dashboard.**
+
+🌐 **[CalX Website](https://calxio.vercel.app/)**
 
 ![CalX Dashboard](https://github.com/Saijayaranjan/CalX-Frontend/blob/main/public/images/Website.png?raw=true)
+
+</div>
+
+---
 
 ## Features
 
@@ -35,175 +48,85 @@ Production-ready backend for CalX IoT device and web dashboard.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/calx-backend.git
+git clone https://github.com/Saijayaranjan/calx-backend.git
 cd calx-backend
 
 # Install dependencies
 npm install
 
-# Copy environment file
+# Copy environment template
 cp .env.example .env
 
-# Edit .env with your values
+# Edit .env with your database URL and secrets
 ```
 
-### Configure Environment
-
-Edit `.env` with your configuration:
+### Environment Variables
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/calx
-JWT_SECRET=your-super-secret-jwt-key-min-32-characters
-DEVICE_TOKEN_SECRET=your-device-token-secret-min-32-characters
-
-# AI Providers (configure the ones you use)
-OPENAI_API_KEY=sk-xxx
-ANTHROPIC_API_KEY=sk-ant-xxx
-GOOGLE_AI_API_KEY=xxx
+JWT_SECRET=your-jwt-secret
+PORT=3001
 ```
 
-### Database Setup
+### Run
 
 ```bash
-# Generate Prisma client
-npm run prisma:generate
-
-# Run migrations
-npm run prisma:migrate
-```
-
-### Run Development Server
-
-```bash
+# Development
 npm run dev
+
+# Production
+npm run build
+npm start
 ```
 
-Server starts at `http://localhost:3000`
-
-### Using Docker
-
-```bash
-# Start all services (PostgreSQL + Backend)
-docker-compose up -d
-
-# View logs
-docker-compose logs -f backend
-
-# Stop services
-docker-compose down
-```
-
-## API Documentation
-
-- **OpenAPI Spec**: `docs/openapi.yaml`
-- **Health Check**: `GET /health`
+## API Endpoints
 
 ### Authentication
+- `POST /auth/register` - Register new user
+- `POST /auth/login` - Login user
 
-**Web Routes** (`/web/*`)
-```bash
-# Include JWT token in header
-Authorization: Bearer <jwt_token>
-```
+### Device
+- `POST /device/bind/request` - Get bind code
+- `GET /device/bind/status` - Check binding status
+- `POST /device/heartbeat` - Send device status
 
-**Device Routes** (`/device/*`)
-```bash
-# Include device token in header
-Authorization: Bearer dev_tok_<token>
-```
+### Chat & Files
+- `GET /device/chat` - Fetch messages
+- `POST /device/chat/send` - Send message
+- `GET /device/file` - Get synced file
 
-### Key Endpoints
+### AI
+- `POST /device/ai/query` - Send AI prompt
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/web/auth/register` | POST | Register user |
-| `/web/auth/login` | POST | Login user |
-| `/device/bind/request` | POST | Request bind code |
-| `/web/bind/confirm` | POST | Confirm device binding |
-| `/device/heartbeat` | POST | Device status update |
-| `/device/chat` | GET | Fetch messages |
-| `/device/ai/query` | POST | AI query |
-| `/device/update/check` | GET | Check for updates |
-
-## Testing
-
-```bash
-# Run all tests
-npm test
-
-# Run with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test -- --testPathPattern=bind
-```
-
-## Project Structure
-
-```
-src/
-├── config/          # Environment configuration
-├── lib/             # Prisma client
-├── middleware/      # Auth, error handling, validation
-├── routes/
-│   ├── device/      # Device endpoints
-│   └── web/         # Web dashboard endpoints
-├── services/        # Business logic
-├── types/           # TypeScript types
-└── utils/           # Helpers (logger, crypto, validators)
-```
-
-## Constraints
-
-| Limit | Value |
-|-------|-------|
-| Chat message | ≤ 2500 chars |
-| AI input | ≤ 2500 chars |
-| AI output chunk | ≤ 2500 chars |
-| File content | ≤ 4000 chars |
-| Bind code TTL | 300 seconds |
-| OTA minimum battery | > 30% |
-
-## AI Sanitization Pipeline
-
-AI responses are processed through:
-
-1. **Strip code blocks** - Remove fenced code blocks and inline code
-2. **Strip markdown** - Remove headers, bold, italic, links
-3. **Convert math symbols**:
-   - `√` → `sqrt()`
-   - `∫` → `Integral of`
-   - `∑` → `Sum of`
-   - `π` → `pi`
-   - `∞` → `infinity`
-4. **Safe chunking** - Split at sentence boundaries, never inside parentheses
+### OTA
+- `GET /device/update/check` - Check for updates
+- `GET /device/update/download` - Download firmware
 
 ## Deployment
 
-### Vercel
+### Vercel (Recommended)
 
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Use Supabase for PostgreSQL database
+1. Connect your GitHub repo to Vercel
+2. Add environment variables
+3. Deploy!
 
 ### Docker
 
 ```bash
-# Build image
 docker build -t calx-backend .
-
-# Run container
-docker run -p 3000:3000 --env-file .env calx-backend
+docker run -p 3001:3001 calx-backend
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `npm test`
-5. Submit a pull request
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**Part of the CalX Ecosystem**
+
+🌐 [CalX Website](https://calxio.vercel.app/) • [Frontend](https://github.com/Saijayaranjan/CalX-Frontend) • [Firmware](https://github.com/Saijayaranjan/CalX-Fireware)
+
+</div>

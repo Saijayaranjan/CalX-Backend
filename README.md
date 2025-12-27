@@ -2,6 +2,8 @@
 
 Production-ready backend for CalX IoT device and web dashboard.
 
+![CalX Dashboard](https://raw.githubusercontent.com/Saijayaranjan/CalX-Frontend/main/public/images/Website.png)
+
 ## Features
 
 - **REST API** for device and web dashboard communication

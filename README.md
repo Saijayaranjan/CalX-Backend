@@ -117,6 +117,31 @@ docker build -t calx-backend .
 docker run -p 3001:3001 calx-backend
 ```
 
+## ✅ What Works Today
+
+- User authentication (register, login) with bcrypt + JWT
+- Device binding with secure 4-character codes
+- Multi-provider AI integration (OpenAI, Anthropic, Gemini, DeepSeek, etc.)
+- Chat messaging between device and dashboard
+- File sync with 4000 character limit
+- Device token auth with HMAC-SHA256 hashing
+- Ownership verification for device operations
+
+## ⚠️ Known Issues
+
+- **No rate limiting** - Login, register, and API endpoints lack rate limiting
+- **No CORS configuration** - May need adjustment for production domains
+- **OTA endpoint untested** - Firmware update flow not tested end-to-end
+
+## Security
+
+- ✅ Passwords hashed with bcrypt (12 rounds)
+- ✅ JWT tokens with configurable expiry
+- ✅ Device tokens hashed with HMAC-SHA256
+- ✅ Timing-safe token comparison
+- ✅ Secure random generation (crypto.randomBytes)
+- ⚠️ Add rate limiting before production
+
 ## License
 
 Apache License 2.0 - see [LICENSE](LICENSE) for details.

@@ -52,6 +52,9 @@ export const heartbeatSchema = z.object({
     battery_percent: z.number().int().min(0).max(100),
     power_mode: z.enum(['NORMAL', 'LOW']),
     firmware_version: z.string().min(1).max(20),
+    wifi_ssid: z.string().max(32).optional(),
+    free_storage: z.number().int().min(0).optional(),
+    free_ram: z.number().int().min(0).optional(),
 });
 
 // =============================================================================

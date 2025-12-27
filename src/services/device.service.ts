@@ -215,6 +215,9 @@ export async function processHeartbeat(
         batteryPercent: number;
         powerMode: PowerMode;
         firmwareVersion: string;
+        wifiSsid?: string;
+        freeStorage?: number;
+        freeRam?: number;
     }
 ): Promise<void> {
     const device = await prisma.device.update({
@@ -223,6 +226,9 @@ export async function processHeartbeat(
             batteryPercent: data.batteryPercent,
             powerMode: data.powerMode,
             firmwareVersion: data.firmwareVersion,
+            wifiSsid: data.wifiSsid,
+            freeStorage: data.freeStorage,
+            freeRam: data.freeRam,
             lastSeen: new Date(),
             online: true,
         },

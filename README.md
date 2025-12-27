@@ -2,7 +2,7 @@
 
 Production-ready backend for CalX IoT device and web dashboard.
 
-![CalX Dashboard](https://raw.githubusercontent.com/Saijayaranjan/CalX-Frontend/main/public/images/Website.png)
+![CalX Dashboard](https://github.com/Saijayaranjan/CalX-Frontend/blob/main/public/images/Website.png?raw=true)
 
 ## Features
 
